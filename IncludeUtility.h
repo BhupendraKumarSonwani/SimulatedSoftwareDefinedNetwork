@@ -4,6 +4,7 @@
 // Contains all macros, struct defintions and includes
 
 #include <poll.h>
+#include <time.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>

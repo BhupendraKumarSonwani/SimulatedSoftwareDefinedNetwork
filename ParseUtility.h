@@ -147,13 +147,21 @@ void ProcessPacketForSwitch(char packet[], SwitchData* switchData, PacketStatsFo
   }
 }
 
+double GetTimeInMilliSec()
+{
+  struct timeval time;
+  gettimeofday(&time, NULL);
+  return (time.tv_sec + (time.tv_usec / 1000000.0)) * 1000.0;
+}
 
-
-void ProcessTrafficFileLine(char line[], SwitchData* switchData, PacketStatsForSwitch* packetStats)
+void ProcessTrafficFileLine(char line[], SwitchData* switchData, PacketStatsForSwitch* packetStats, double* start, int* delay)
 {
   const char delim[] = " ";
   char localLine[MSG_BUF];
+  char delayToken[MSG_BUF];
+  strncpy(delayToken, line, MSG_BUF);
   char* running;
+  char* delayRunning = delayToken;
   running = line;
   strncpy(localLine, line, MSG_BUF);
   char* token;
@@ -164,8 +172,24 @@ void ProcessTrafficFileLine(char line[], SwitchData* switchData, PacketStatsForS
   {
     if (targetSwitchId == switchData->mSwitchID)
     {
-      packetStats->mNumAdmit++;
-      ProcessPacketForSwitch(localLine, switchData, packetStats, 3);
+      token = strsep(&delayRunning, delim); // first argument
+      token = strsep(&delayRunning, delim); // second argument
+      if (strncmp(token, "delay", 5) == 0)
+      {
+        int tempDelay = atoi(strsep(&delayRunning, delim));
+        if (tempDelay > -1) 
+        {
+          *start = GetTimeInMilliSec();
+          *delay = tempDelay;
+          printf("Entering a delay period for %d millisec\n", tempDelay);
+        }
+        else printf("Error parsing delay packet\n");
+      }
+      else
+      {
+        packetStats->mNumAdmit++;
+        ProcessPacketForSwitch(localLine, switchData, packetStats, 3);
+      }
     }
   }
 }

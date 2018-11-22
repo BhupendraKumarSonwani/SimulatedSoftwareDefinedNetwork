@@ -47,7 +47,6 @@ void SetSwitchData(ProgramStateData* programStateData, char* arguments[])
 
 void InitializeSocketsForController(ProgramStateData* programStateData)
 {
-  printf("InitializeSocketsForController() entered\n");
   // creating a managing socket
   ControllerData* contollerData = &programStateData->mControllerData;
   contollerData->mSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -131,7 +130,7 @@ void PerformControllerLoop(ControllerData* controllerData)
   int pollResult;
   char buffer[MSG_BUF];
   int bytes_in;
-  int numConnectedSwitches = 1;
+  int numConnections = 1;
 
   fdArray[0].fd = controllerData->mSocket;
   fdArray[0].events = 0;
@@ -143,29 +142,35 @@ void PerformControllerLoop(ControllerData* controllerData)
 
   while (1)
   {
-    pollResult = poll(fdArray, numConnectedSwitches, 100); // wait 100 until timeout
+    pollResult = poll(fdArray, numConnections, 100); // wait 100 until timeout
 
     if (pollResult == -1) printf("Poll Error\n");
     else
     {
-      if ((numConnectedSwitches < controllerData->mNumSwitches) && fdArray[0].revents & POLLIN)
+      if ((numConnections < controllerData->mNumSwitches + 1) && fdArray[0].revents & POLLIN)
       {
         printf("Accepting connection\n");
         socklen_t mSFROMLen = sizeof (controllerData->mSFROM);
-        controllerData->mSocketFD[numConnectedSwitches] = accept(controllerData->mSocket, (struct sockaddr*) &controllerData->mSFROM, &mSFROMLen);
-        printf("Accept returned: %d\n", controllerData->mSocketFD[numConnectedSwitches]);
-        fdArray[numConnectedSwitches].fd = controllerData->mSocketFD[numConnectedSwitches];
-        fdArray[numConnectedSwitches].events = POLLIN;
-        fdArray[numConnectedSwitches].revents = 0;
-        numConnectedSwitches++;
+        controllerData->mSocketFD[numConnections] = accept(controllerData->mSocket, (struct sockaddr*) &controllerData->mSFROM, &mSFROMLen);
+        fdArray[numConnections].fd = controllerData->mSocketFD[numConnections];
+        fdArray[numConnections].events = POLLIN;
+        fdArray[numConnections].revents = 0;
+        numConnections++;
       }
 
-      for (int i = 1; i < numConnectedSwitches; i++)
+      for (int i = 1; i < numConnections; i++)
       {
         // checking the data sockets
         if (fdArray[i].revents & POLLIN)
         {
-          printf("Received something on the data socket\n");
+            if (recv(fdArray[i].fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0)
+            {
+              if (controllerData->mSwitchData[i-1].mActive == 1)
+              {
+                controllerData->mSwitchData[i-1].mActive = 0;
+                printf("Connection with sw%d lost\n", i);
+              }
+            }
             if ((bytes_in = read(fdArray[i].fd, buffer, MSG_BUF)) > 0)
             {
               buffer[bytes_in] = '\0';
@@ -210,14 +215,22 @@ void PerformSwitchLoop(SwitchData* switchData, PacketStatsForSwitch* packetStats
   FILE* trafficFile = fopen(switchData->mTrafficFileName, "r");
   if (trafficFile == NULL) printf("Error opening file\n");
   char line[MSG_BUF];
+  double startTime;
+  int delay = 0;
   while(1)
   {
-    // read one line from Traffic File
-    if (fgets(line, sizeof(line), trafficFile))
+    if (GetTimeInMilliSec() - startTime >= delay)
     {
-      ProcessTrafficFileLine(line, switchData, packetStats);
+      if (delay != 0) printf("Delay period ended\n");
+      startTime = 0;
+      delay = 0;
+      // read one line from Traffic File
+      if (fgets(line, sizeof(line), trafficFile))
+      {
+       ProcessTrafficFileLine(line, switchData, packetStats, &startTime, &delay);
+      }
     }
-
+    
     {
       // poll the keyboard for input
       struct pollfd keyboardFDArray[1];
@@ -323,7 +336,6 @@ void InitializeSwitch(SwitchData* switchData, PacketStatsForSwitch* packetStats)
   if (pollResult == -1) printf("Poll Error\n");
   else if (fdArray[0].revents & POLLIN)
   {
-    printf("Got something from controller\n");
     int bytes_in = read(fdArray[0].fd, buffer, MSG_BUF);
     buffer[bytes_in] = '\0';
     if (strncmp(buffer, "Ack", bytes_in) == 0)

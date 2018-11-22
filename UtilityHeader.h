@@ -12,11 +12,12 @@ void OpenSwitchFIFOs(SwitchData* switchData)
       char writeFIFO[9];
       sprintf(writeFIFO, "fifo-%d-%d", switchId, switchId - 1);
       switchData->mFDOut[0] = open(writeFIFO, O_RDWR | O_NONBLOCK);
-
+      printf("\nOpening outgoing connection for port 1 with FD: %d", switchData->mFDOut[0]);
       // open FIFO for read
       char readFIFO[9];
       sprintf(readFIFO, "fifo-%d-%d", switchId - 1, switchId);
       switchData->mFDIn[0] = open(readFIFO, O_RDONLY | O_NONBLOCK);
+      printf("\nOpening incoming connection for port 1 with FD: %d", switchData->mFDIn[0]);
     }
 
     // open connection with right node
@@ -25,12 +26,14 @@ void OpenSwitchFIFOs(SwitchData* switchData)
         // open FIFO for read
         char readFIFO[9];
         sprintf(readFIFO, "fifo-%d-%d", switchId + 1, switchId);
-        switchData->mFDIn[1] = open(readFIFO, O_RDWR | O_NONBLOCK);
+        switchData->mFDIn[1] = open(readFIFO, O_RDONLY | O_NONBLOCK);
+        printf("\nOpening incoming connection for port 2 with FD: %d", switchData->mFDIn[1]);
 
         // open FIFO for write
         char writeFIFO[9];
         sprintf(writeFIFO, "fifo-%d-%d", switchId, switchId + 1);
-        switchData->mFDOut[1] = open(writeFIFO, O_WRONLY | O_NONBLOCK);
+        switchData->mFDOut[1] = open(writeFIFO, O_RDWR | O_NONBLOCK);
+        printf("\nOpening outgoing connection for port 2 with FD: %d", switchData->mFDOut[1]);
       }
 }
 
@@ -200,7 +203,7 @@ void RelayOrDropPacket(char packet[], int sourceIP, int destinationIP, SwitchDat
       }
       write(fd, Packet, PacketSize);
       packetStats->mNumRelayOut++;
-      printf("Relaying Packet: %s to port: %d\n", Packet, switchData->mFlowTable[foundFlowTableIndex].mActionValue);
+      printf("Relaying Packet: %s to port: %d on FD: %d\n", Packet, switchData->mFlowTable[foundFlowTableIndex].mActionValue, fd);
     }
     else
     {
