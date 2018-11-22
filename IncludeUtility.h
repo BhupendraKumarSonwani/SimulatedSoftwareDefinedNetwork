@@ -74,7 +74,7 @@ typedef struct ControllerData
   int mSocket;
   struct sockaddr_in mSIN;
   struct sockaddr_in mSFROM;
-  int mSocketFD[MAX_NSW+1]; // sw(i) is in mFDIn[i-1]
+  int mSocketFD[MAX_NSW+1]; // sw(i) is in mSocket[i]
   SwitchDataForController mSwitchData[MAX_NSW];
 } ControllerData;
 

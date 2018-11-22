@@ -41,20 +41,21 @@ void CleanUp()
 
 void SendOpenRequest(SwitchData* switchData)
 {
+  printf("Sending open request to FD: %d\n", switchData->mSocket);
   char Packet[MSG_BUF];
   int PacketSize = sprintf(Packet, "Open %d %d %d %d %d", switchData->mSwitchID,
                                          switchData->mLeftSwitchNode,
                                          switchData->mRightSwitchNode,
                                          switchData->mIPLow,
                                          switchData->mIPHigh);
-  write(switchData->mFDOut[0], Packet, PacketSize);
+  write(switchData->mSocket, Packet, PacketSize);
 }
 
 void SendAckPacket(int switchId, ControllerData* controllerData, PacketStatsForController* packetStats)
 {
   char Packet[MSG_BUF];
   int PacketSize = sprintf(Packet, "Ack");
-  write(controllerData->mFDOut[switchId-1], Packet, PacketSize);
+  write(controllerData->mSocketFD[switchId], Packet, PacketSize);
   packetStats->mNumAck++;
 }
 
@@ -94,7 +95,7 @@ void SendQueryRequest(SwitchData* switchData, int destinationIP, PacketStatsForS
   printf("Sending Query packet to controller\n");
   char Packet[MSG_BUF];
   int PacketSize = sprintf(Packet, "Query %d %d", switchData->mSwitchID, destinationIP);
-  write(switchData->mFDOut[0], Packet, PacketSize);
+  write(switchData->mSocket, Packet, PacketSize);
   packetStats->mNumQuery++;
 
   struct pollfd fdArray[1];
@@ -102,7 +103,7 @@ void SendQueryRequest(SwitchData* switchData, int destinationIP, PacketStatsForS
   char buffer[MSG_BUF];
   int bytes_in;
 
-  fdArray[0].fd = switchData->mFDIn[0];
+  fdArray[0].fd = switchData->mSocket;
   fdArray[0].events = 0;
   fdArray[0].events |= POLLIN;
 
@@ -148,12 +149,9 @@ void SendAddPacket(ControllerData* controllerData, PacketStatsForController* pac
     PacketSize = sprintf(Packet, "Add %d %d Relay %d", destinationIPHigh, destinationIPLow, destinationPort);
   }
 
-  write(controllerData->mFDOut[sourceSwitchId-1], Packet, PacketSize);
+  write(controllerData->mSocketFD[sourceSwitchId], Packet, PacketSize);
   packetStats->mNumAdd++;
 }
-
-
-
 
 void RelayOrDropPacket(char packet[], int sourceIP, int destinationIP, SwitchData* switchData, PacketStatsForSwitch* packetStats)
 {
@@ -189,11 +187,11 @@ void RelayOrDropPacket(char packet[], int sourceIP, int destinationIP, SwitchDat
       int fd;
       if (switchData->mFlowTable[foundFlowTableIndex].mActionValue == 2)
       {
-        fd = switchData->mFDOut[2];
+        fd = switchData->mFDOut[1];
       }
       else if (switchData->mFlowTable[foundFlowTableIndex].mActionValue == 1)
       {
-        fd = switchData->mFDOut[1];
+        fd = switchData->mFDOut[0];
       }
       else
       {

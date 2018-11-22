@@ -4,6 +4,7 @@
 
 void InitializeSocketForSwitch(char hostName[], SwitchData* switchData)
 {
+   printf("InitializeSocketForSwitch() entered\n");
    struct hostent	*hp;
    hp = gethostbyname(hostName);
    if (hp == (struct hostent*) NULL)
@@ -11,6 +12,9 @@ void InitializeSocketForSwitch(char hostName[], SwitchData* switchData)
      printf("Error determining hostname\n");
      exit(1);
    }
+   struct in_addr ** addrList = (struct in_addr**) hp->h_addr_list;
+   if (addrList[0] != NULL) printf("InitializedSwitch with IP: %s\n", inet_ntoa(*addrList[0]));
+   else { printf("addrList[0] is NULL\n"); }
 
    memset ((char*) &switchData->mServerSIN, 0, sizeof switchData->mServerSIN);
    memcpy ((char*) &switchData->mServerSIN.sin_addr, hp->h_addr, hp->h_length);
@@ -24,7 +28,7 @@ void InitializeSocketForSwitch(char hostName[], SwitchData* switchData)
      exit(1);
    }
 
-   if (connect(switchData->mSocket, (struct sockaddr*) switchData->mServerSIN, sizeof switchData->mServerSIN) < 0)
+   if (connect(switchData->mSocket, (struct sockaddr*) &switchData->mServerSIN, sizeof switchData->mServerSIN) < 0)
    {
      printf("Error connecting to controller with switch id: %d\n", switchData->mSwitchID);
      exit(1);

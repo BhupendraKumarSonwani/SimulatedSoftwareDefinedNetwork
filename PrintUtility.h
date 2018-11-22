@@ -21,23 +21,6 @@ void PrintProgramData(ProgramStateData* programStateData)
     printf("IP High: %d\n", programStateData->mSwitchData.mIPHigh);
     printf("IP Low: %d\n", programStateData->mSwitchData.mIPLow);
 
-    char addrstr[100];
-    void *ptr;
-    struct addrinfo* addressInfo = &programStateData->mSwitchData.mAddressInfo;
-    switch (addressInfo->ai_family)
-    {
-    case AF_INET:
-        ptr = &((struct sockaddr_in *) addressInfo->ai_addr)->sin_addr;
-        break;
-    case AF_INET6:
-        ptr = &((struct sockaddr_in6 *) addressInfo->ai_addr)->sin6_addr;
-        break;
-    default:
-        printf("Address family wasn't determined\n");
-    }
-    inet_ntop (addressInfo->ai_family, ptr, addrstr, 100);
-    printf("Server Address: %s\n", addrstr);
-
     printf("Port Number: %d\n", programStateData->mSwitchData.mPortNumber);
   }
   else if (programStateData->mProgramMode == Controller)

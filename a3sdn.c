@@ -38,14 +38,16 @@ void SetSwitchData(ProgramStateData* programStateData, char* arguments[])
   programStateData->mSwitchData.mIPLow = atoi(strtok(arguments[5], delim));
   programStateData->mSwitchData.mIPHigh = atoi(strtok(NULL, delim));
 
-  ParseHostName(arguments[6], &programStateData->mSwitchData.mAddressInfo);
   programStateData->mSwitchData.mPortNumber = atoi(arguments[7]);
+  printf("Port number: %d\n", programStateData->mSwitchData.mPortNumber);
+  InitializeSocketForSwitch(arguments[6], &programStateData->mSwitchData);
 
   programStateData->mStateDataValid = 1;
 }
 
 void InitializeSocketsForController(ProgramStateData* programStateData)
 {
+  printf("InitializeSocketsForController() entered\n");
   // creating a managing socket
   ControllerData* contollerData = &programStateData->mControllerData;
   contollerData->mSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,7 +60,7 @@ void InitializeSocketsForController(ProgramStateData* programStateData)
   // binding the managing socket to a name
   contollerData->mSIN.sin_family = AF_INET;
   contollerData->mSIN.sin_addr.s_addr = htonl(INADDR_ANY);
-  contollerData->mSIN.sin_port = contollerData->mPortNumber;
+  contollerData->mSIN.sin_port = htons(contollerData->mPortNumber);
 
   if (bind (contollerData->mSocket, (struct sockaddr*) &contollerData->mSIN, sizeof contollerData->mSIN) < 0)
   {
@@ -66,6 +68,7 @@ void InitializeSocketsForController(ProgramStateData* programStateData)
     exit(1);
   }
 
+  printf("Listening to connection requests\n");
   // listening to connection requests
   listen(contollerData->mSocket, contollerData->mNumSwitches);
 }
@@ -145,11 +148,12 @@ void PerformControllerLoop(ControllerData* controllerData)
     if (pollResult == -1) printf("Poll Error\n");
     else
     {
-      if ((numConnectedSwitches < MAX_NSW) && fdArray[0].revents & POLLIN)
+      if ((numConnectedSwitches < controllerData->mNumSwitches) && fdArray[0].revents & POLLIN)
       {
-        int mSFROMLen = sizeof (controllerData->mSFROM);
-        controllerData->mSocketFD[numConnectedSwitches] = accept(controllerData->mSocket, (struct sockaddr*) &controllerData->mSFROM, mSFROMLen);
-
+        printf("Accepting connection\n");
+        socklen_t mSFROMLen = sizeof (controllerData->mSFROM);
+        controllerData->mSocketFD[numConnectedSwitches] = accept(controllerData->mSocket, (struct sockaddr*) &controllerData->mSFROM, &mSFROMLen);
+        printf("Accept returned: %d\n", controllerData->mSocketFD[numConnectedSwitches]);
         fdArray[numConnectedSwitches].fd = controllerData->mSocketFD[numConnectedSwitches];
         fdArray[numConnectedSwitches].events = POLLIN;
         fdArray[numConnectedSwitches].revents = 0;
@@ -161,6 +165,7 @@ void PerformControllerLoop(ControllerData* controllerData)
         // checking the data sockets
         if (fdArray[i].revents & POLLIN)
         {
+          printf("Received something on the data socket\n");
             if ((bytes_in = read(fdArray[i].fd, buffer, MSG_BUF)) > 0)
             {
               buffer[bytes_in] = '\0';
@@ -248,7 +253,7 @@ void PerformSwitchLoop(SwitchData* switchData, PacketStatsForSwitch* packetStats
       char leftNodeBuffer[MSG_BUF];
       int bytes_in;
 
-      leftNodeFdArray[0].fd = switchData->mFDIn[1];
+      leftNodeFdArray[0].fd = switchData->mFDIn[0];
       leftNodeFdArray[0].events = 0;
       leftNodeFdArray[0].events |= POLLIN;
 
@@ -270,7 +275,7 @@ void PerformSwitchLoop(SwitchData* switchData, PacketStatsForSwitch* packetStats
       char rightNodeBuffer[MSG_BUF];
       int bytes_in;
 
-      rightNodeFdArray[0].fd = switchData->mFDIn[2];
+      rightNodeFdArray[0].fd = switchData->mFDIn[1];
       rightNodeFdArray[0].events = 0;
       rightNodeFdArray[0].events |= POLLIN;
 
@@ -301,10 +306,9 @@ void InitializeSwitch(SwitchData* switchData, PacketStatsForSwitch* packetStats)
   switchData->mFlowTable[0].mPriority = 4; switchData->mFlowTable[0].mPacketCount = 0;
 
   switchData->mNumFlowTablesEntries = 1;
-  // Even though the FIFOs to/from controller is opened in
-  // non-blocking mode, we will still block for this`
+  // We will block for communication with the controller
   struct pollfd fdArray[1];
-  fdArray[0].fd = switchData->mFDIn[0]; // the FIFO to read from Controller
+  fdArray[0].fd = switchData->mSocket; // the FD to read from Controller
   fdArray[0].events = 0;
   fdArray[0].events |= POLLIN;
   int pollResult;
@@ -319,6 +323,7 @@ void InitializeSwitch(SwitchData* switchData, PacketStatsForSwitch* packetStats)
   if (pollResult == -1) printf("Poll Error\n");
   else if (fdArray[0].revents & POLLIN)
   {
+    printf("Got something from controller\n");
     int bytes_in = read(fdArray[0].fd, buffer, MSG_BUF);
     buffer[bytes_in] = '\0';
     if (strncmp(buffer, "Ack", bytes_in) == 0)
@@ -330,8 +335,7 @@ void InitializeSwitch(SwitchData* switchData, PacketStatsForSwitch* packetStats)
 
 void OpenFIFOs(ProgramStateData* programStateData)
 {
-  if (programStateData->mProgramMode == Controller) OpenControllerFIFOs(&programStateData->mControllerData);
-  else if (programStateData->mProgramMode == Switch) OpenSwitchFIFOs(&programStateData->mSwitchData);
+  if (programStateData->mProgramMode == Switch) OpenSwitchFIFOs(&programStateData->mSwitchData);
 }
 
 int main(int argc, char *argv[])
