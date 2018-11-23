@@ -4,7 +4,6 @@
 void OpenSwitchFIFOs(SwitchData* switchData)
 {
   int switchId = switchData->mSwitchID;
-
   // open connection with left node
   if (switchData->mLeftSwitchNode != -1)
     {
@@ -12,29 +11,25 @@ void OpenSwitchFIFOs(SwitchData* switchData)
       char writeFIFO[9];
       sprintf(writeFIFO, "fifo-%d-%d", switchId, switchId - 1);
       switchData->mFDOut[0] = open(writeFIFO, O_RDWR | O_NONBLOCK);
-      printf("\nOpening outgoing connection for port 1 with FD: %d", switchData->mFDOut[0]);
       // open FIFO for read
       char readFIFO[9];
       sprintf(readFIFO, "fifo-%d-%d", switchId - 1, switchId);
       switchData->mFDIn[0] = open(readFIFO, O_RDONLY | O_NONBLOCK);
-      printf("\nOpening incoming connection for port 1 with FD: %d", switchData->mFDIn[0]);
     }
-
     // open connection with right node
-    if (switchData->mRightSwitchNode != -1)
-      {
-        // open FIFO for read
-        char readFIFO[9];
-        sprintf(readFIFO, "fifo-%d-%d", switchId + 1, switchId);
-        switchData->mFDIn[1] = open(readFIFO, O_RDONLY | O_NONBLOCK);
-        printf("\nOpening incoming connection for port 2 with FD: %d", switchData->mFDIn[1]);
+  if (switchData->mRightSwitchNode != -1)
+    {
+      // open FIFO for read
+      char readFIFO[9];
+      sprintf(readFIFO, "fifo-%d-%d", switchId + 1, switchId);
+      switchData->mFDIn[1] = open(readFIFO, O_RDONLY | O_NONBLOCK);
 
-        // open FIFO for write
-        char writeFIFO[9];
-        sprintf(writeFIFO, "fifo-%d-%d", switchId, switchId + 1);
-        switchData->mFDOut[1] = open(writeFIFO, O_RDWR | O_NONBLOCK);
-        printf("\nOpening outgoing connection for port 2 with FD: %d", switchData->mFDOut[1]);
-      }
+      // open FIFO for write
+      char writeFIFO[9];
+      sprintf(writeFIFO, "fifo-%d-%d", switchId, switchId + 1);
+      switchData->mFDOut[1] = open(writeFIFO, O_RDWR | O_NONBLOCK);
+      printf("\nOpening outgoing connection for port 2 with FD: %d", switchData->mFDOut[1]);
+    }
 }
 
 void CleanUp()
@@ -44,7 +39,7 @@ void CleanUp()
 
 void SendOpenRequest(SwitchData* switchData)
 {
-  printf("Sending open request to FD: %d\n", switchData->mSocket);
+  printf("\nSending open request to controller\n");
   char Packet[MSG_BUF];
   int PacketSize = sprintf(Packet, "Open %d %d %d %d %d", switchData->mSwitchID,
                                          switchData->mLeftSwitchNode,
@@ -58,6 +53,7 @@ void SendAckPacket(int switchId, ControllerData* controllerData, PacketStatsForC
 {
   char Packet[MSG_BUF];
   int PacketSize = sprintf(Packet, "Ack");
+  printf("\nTransmitted Ack packet to controller\n");
   write(controllerData->mSocketFD[switchId], Packet, PacketSize);
   packetStats->mNumAck++;
 }
@@ -95,7 +91,7 @@ void AddFlowTableEntry(char packet[], int PacketSize, SwitchData* switchData, Pa
 
 void SendQueryRequest(SwitchData* switchData, int destinationIP, PacketStatsForSwitch* packetStats)
 {
-  printf("Sending Query packet to controller\n");
+  printf("\nSending Query packet to controller\n");
   char Packet[MSG_BUF];
   int PacketSize = sprintf(Packet, "Query %d %d", switchData->mSwitchID, destinationIP);
   write(switchData->mSocket, Packet, PacketSize);
@@ -116,7 +112,7 @@ void SendQueryRequest(SwitchData* switchData, int destinationIP, PacketStatsForS
   {
     if ((bytes_in = read(fdArray[0].fd, buffer, MSG_BUF)) > 0)
     buffer[bytes_in] = '\0';
-    printf("Received add from controller: %s\n", buffer);
+    printf("\nReceived add from controller: %s\n", buffer);
     AddFlowTableEntry(buffer, bytes_in, switchData, packetStats);
     packetStats->mNumAddRule++;
   }
@@ -153,6 +149,7 @@ void SendAddPacket(ControllerData* controllerData, PacketStatsForController* pac
   }
 
   write(controllerData->mSocketFD[sourceSwitchId], Packet, PacketSize);
+  printf("\nSending Add packet to sw%d\n", sourceSwitchId);
   packetStats->mNumAdd++;
 }
 
@@ -203,11 +200,15 @@ void RelayOrDropPacket(char packet[], int sourceIP, int destinationIP, SwitchDat
       }
       write(fd, Packet, PacketSize);
       packetStats->mNumRelayOut++;
-      printf("Relaying Packet: %s to port: %d on FD: %d\n", Packet, switchData->mFlowTable[foundFlowTableIndex].mActionValue, fd);
+      printf("\nRelaying Packet: %s to port: %d\n", Packet, switchData->mFlowTable[foundFlowTableIndex].mActionValue);
     }
     else
     {
-      printf("Dropping Packet: %s\n", packet);
+      if (destinationIP >= switchData->mIPLow && destinationIP <= switchData->mIPHigh)
+      {
+        printf("\nPacket: %s reached intended switch and was consumed\n", packet);
+      }
+      printf("\nDropping Packet: %s\n", packet);
     }
   }
 }

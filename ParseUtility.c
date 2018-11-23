@@ -1,5 +1,5 @@
 #include "IncludeUtility.h"
-#include "UtilityHeader.h"
+#include "UtilityHeader.c"
 // Contains all parsing functions
 
 void InitializeSocketForSwitch(char hostName[], SwitchData* switchData)

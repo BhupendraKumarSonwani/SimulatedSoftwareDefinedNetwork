@@ -13,7 +13,7 @@ void PrintProgramData(ProgramStateData* programStateData)
 {
   if (programStateData->mProgramMode == Switch)
   {
-    printf("Successfully created a switch with following parameters: \n");
+    printf("\nSuccessfully created a switch with following parameters: \n");
     printf("Switch ID: sw%d\n", programStateData->mSwitchData.mSwitchID);
     printf("Traffic File Name: %s\n", programStateData->mSwitchData.mTrafficFileName);
     printf("Left Node Number: %d\n", programStateData->mSwitchData.mLeftSwitchNode);
@@ -25,8 +25,7 @@ void PrintProgramData(ProgramStateData* programStateData)
   }
   else if (programStateData->mProgramMode == Controller)
   {
-    // TODO: Remove the creation prints
-    printf("Successfully created a controller with following parameters: \n");
+    printf("\nSuccessfully created a controller with following parameters: \n");
     printf("Number of Switches: %d\n", programStateData->mControllerData.mNumSwitches);
     printf("Port Number: %d\n", programStateData->mControllerData.mPortNumber);
   }
@@ -48,7 +47,7 @@ void PrintControllerPacketStats(PacketStatsForController* packetStats)
 
 void PrintSwitchInformationForController(ControllerData* controllerData)
 {
-  printf("Switch Information: \n");
+  printf("\nSwitch Information: \n");
   for (int i = 0; i < controllerData->mNumSwitches; i++)
   {
     if (controllerData->mSwitchData[i].mActive == 1)
@@ -73,7 +72,7 @@ void ExitForController(ControllerData* controllerData, PacketStatsForController*
 
 void ListForSwitch(SwitchData* switchData, PacketStatsForSwitch* packetStats)
 {
-  printf("Flow Table: \n");
+  printf("\nFlow Table: \n");
   for (int i = 0; i < switchData->mNumFlowTablesEntries; i++)
   {
     PrintFlowTableEntry(i, switchData->mFlowTable[i]);

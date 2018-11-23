@@ -1,20 +1,18 @@
 #*******************************
 # Makefile
-# CMPUT 379 Assignment 2
+# CMPUT 379 Assignment 3
 # Adit Hasan (1459800)
 #*******************************
 target= submit
-allFiles= Makefile a3sdn.c UtilityHeader.h ParseUtility.h PrintUtility.h IncludeUtility.h
+allFiles= Makefile a3sdn.c UtilityHeader.c ParseUtility.c PrintUtility.c IncludeUtility.h
 
 all: start
 
-start: start.c
-	gcc -w a3sdn.c -o a3sdn.out
-
-start.c:
+start: 
+	gcc -w a3sdn.c -o a3sdn
 
 clean:
-	rm -rf *.out
+	rm -rf a3sdn
 	rm -rf *.tar
 
 tar:

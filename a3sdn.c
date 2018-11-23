@@ -1,5 +1,5 @@
-#include "PrintUtility.h"
-#include "ParseUtility.h"
+#include "PrintUtility.c"
+#include "ParseUtility.c"
 
 void SetSwitchData(ProgramStateData* programStateData, char* arguments[])
 {
